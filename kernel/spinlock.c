@@ -124,29 +124,46 @@ release(struct spinlock *lk)
 static void
 read_acquire_inner(struct rwspinlock *rwlk)
 {
-  // Replace this with your implementation.
-  acquire(&rwlk->l);
+  for(;;){
+    // Wait until there are no writers active or waiting.
+    while(__atomic_load_n(&rwlk->nwriters, __ATOMIC_SEQ_CST) != 0)
+      ;
+    // Register as a reader, then check again: if a writer showed up
+    // in the meantime it will see our count and wait for us, so back
+    // off and retry.  No read lock is acquired while a writer is
+    // holding or waiting for the lock.
+    __atomic_fetch_add(&rwlk->nreaders, 1, __ATOMIC_SEQ_CST);
+    if(__atomic_load_n(&rwlk->nwriters, __ATOMIC_SEQ_CST) == 0)
+      return;
+    __atomic_fetch_sub(&rwlk->nreaders, 1, __ATOMIC_SEQ_CST);
+  }
 }
 
 static void
 read_release_inner(struct rwspinlock *rwlk)
 {
-  // Replace this with your implementation.
-  release(&rwlk->l);
+  __atomic_fetch_sub(&rwlk->nreaders, 1, __ATOMIC_SEQ_CST);
 }
 
 static void
 write_acquire_inner(struct rwspinlock *rwlk)
 {
-  // Replace this with your implementation.
-  acquire(&rwlk->l);
+  // Announce a pending writer: from now on no new reader can acquire
+  // the lock, so we won't be starved by a stream of readers.
+  __atomic_fetch_add(&rwlk->nwriters, 1, __ATOMIC_SEQ_CST);
+  // Wait for the current readers to drain.
+  while(__atomic_load_n(&rwlk->nreaders, __ATOMIC_SEQ_CST) != 0)
+    ;
+  // Wait for any earlier writer to release the lock.
+  while(__atomic_exchange_n(&rwlk->writing, 1, __ATOMIC_SEQ_CST) != 0)
+    ;
 }
 
 static void
 write_release_inner(struct rwspinlock *rwlk)
 {
-  // Replace this with your implementation.
-  release(&rwlk->l);
+  __atomic_store_n(&rwlk->writing, 0, __ATOMIC_SEQ_CST);
+  __atomic_fetch_sub(&rwlk->nwriters, 1, __ATOMIC_SEQ_CST);
 }
 
 void
@@ -180,8 +197,9 @@ write_release(struct rwspinlock *rwlk)
 void
 initrwlock(struct rwspinlock *rwlk)
 {
-  // Replace this with your implementation.
-  initlock(&rwlk->l, "rwlk");
+  __atomic_store_n(&rwlk->nreaders, 0, __ATOMIC_RELEASE);
+  __atomic_store_n(&rwlk->nwriters, 0, __ATOMIC_RELEASE);
+  __atomic_store_n(&rwlk->writing, 0, __ATOMIC_RELEASE);
 }
 
 // Test rwspinlock implementation.
