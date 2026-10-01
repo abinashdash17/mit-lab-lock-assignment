@@ -1,3 +1,22 @@
+# 6.1810 Lock Lab — xv6
+
+This repository is a fork of [MIT 6.1810 xv6-labs-2025](https://github.com/mit-pdos/xv6-labs-2025), branch `lock`, containing a solution to the [Lab: locks](https://pdos.csail.mit.edu/6.1810/2026/labs/lock.html) assignment.
+
+## Disclosure
+
+This solution was generated entirely by an AI model (DeepSeek V4 Pro / DeepSeek Max, driving [opencode](https://opencode.ai)). It was created as an intelligence test of the model, not as work completed by the repository owner. It is published for demonstration purposes; please do not copy it if you are taking the course.
+
+## What was implemented
+
+- `kernel/kalloc.c`: per-CPU free lists (one spinlock per CPU, all named "kmem"), with pages spread across CPUs at boot and O(1) whole-list stealing when a CPU's list is empty.
+- `kernel/spinlock.h` / `kernel/spinlock.c`: an atomic-based reader-writer spinlock with writer priority and a wait-free reader path (no spinlock is taken by `read_acquire`).
+
+`make grade` passes with a score of 100/100.
+
+## Original README
+
+---
+
 xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
 Version 6 (v6).  xv6 loosely follows the structure and style of v6,
 but is implemented for a modern RISC-V multiprocessor using ANSI C.
